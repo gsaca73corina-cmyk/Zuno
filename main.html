@@ -130,6 +130,26 @@
             box-shadow: 0 0 25px rgba(0, 255, 128, 0.5);
             backdrop-filter: blur(10px);
         }
+        #touchControls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 3000;
+       }
+
+        #touchControls button {
+           width: 80px;
+           height: 80px;
+           font-size: 2rem;
+           border-radius: 50%;
+           border: none;
+           background: rgba(0,0,0,0.5);
+           color: white;
+           box-shadow: 0 0 10px #00ffea;
+         }
 
         #hud {
             position: absolute;
@@ -306,6 +326,15 @@
             <button id="restartBtn">🔄 NUEVA MISIÓN</button>
         </div>
     </div>
+
+
+        <!-- CONTROLES TÁCTILES -->
+        <div id="touchControls" class="hidden">
+            <button id="btnLeft">⬅️</button>
+            <button id="btnRight">➡️</button>
+            <button id="btnJump">⏫</button>
+        </div>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -729,6 +758,8 @@ function showGameQuote() {
 
             playNewTrack();
             updateHUD();
+            document.getElementById("touchControls").classList.remove("hidden");
+
         }
 
         function endGame() {
@@ -740,6 +771,8 @@ function showGameQuote() {
             els.finalScore.textContent = score;
             els.finalObstacles.textContent = obstaclesAvoided;
             els.gameOverScreen.classList.remove('hidden');
+            document.getElementById("touchControls").classList.add("hidden");
+
         }
 
         function resetGame() {
@@ -797,6 +830,22 @@ function showGameQuote() {
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
+                        // --- Controles táctiles ---
+            const btnLeft = document.getElementById("btnLeft");
+            const btnRight = document.getElementById("btnRight");
+            const btnJump = document.getElementById("btnJump");
+
+            function pressKey(key) { keys[key] = true; }
+            function releaseKey(key) { keys[key] = false; }
+
+            btnLeft.addEventListener("touchstart", () => pressKey("ArrowLeft"));
+            btnLeft.addEventListener("touchend", () => releaseKey("ArrowLeft"));
+
+            btnRight.addEventListener("touchstart", () => pressKey("ArrowRight"));
+            btnRight.addEventListener("touchend", () => releaseKey("ArrowRight"));
+
+            btnJump.addEventListener("touchstart", () => jump());
+
         }
 
         function animate() {
