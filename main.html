@@ -605,13 +605,28 @@
         // Detectar si es móvil
         function detectMobile() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase()) || 
-                      ('ontouchstart' in window) || 
-                      (window.innerWidth <= 768);
+            const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            const isSmallScreen = window.innerWidth <= 768;
+            
+            isMobile = isMobileUA || isTouchDevice || isSmallScreen;
+            
+            console.log("📱 Detección móvil:", {
+                userAgent: isMobileUA,
+                touchDevice: isTouchDevice,
+                smallScreen: isSmallScreen,
+                finalResult: isMobile,
+                width: window.innerWidth
+            });
             
             if (isMobile) {
                 document.body.classList.add('mobile');
                 showMobileHints = true;
+                
+                // Hacer las zonas táctiles más visibles en móvil para debug
+                els.leftZone.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+                els.rightZone.style.backgroundColor = 'rgba(0, 255, 0, 0.1)';
+                els.jumpZone.style.backgroundColor = 'rgba(0, 0, 255, 0.1)';
             }
         }
 
@@ -1081,7 +1096,7 @@
                 startGame();
             });
 
-            els.startBtn.addEventListener("touchstart", (e) => {
+            els.startBtn.addEventListener("touchend", (e) => {
                 e.preventDefault();
                 startGame();
             });
@@ -1091,7 +1106,7 @@
                 resetGame();
             });
 
-            els.restartBtn.addEventListener("touchstart", (e) => {
+            els.restartBtn.addEventListener("touchend", (e) => {
                 e.preventDefault();
                 resetGame();
             });
@@ -1103,117 +1118,177 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
-            // --- Controles táctiles mejorados ---
-            let touchState = {};
-            let activeZones = new Set();
+            // --- Controles táctiles SIMPLIFICADOS para móvil ---
+            let activeTouches = new Map();
 
-            function onPointerDown(e) {
-                if (!gameRunning) return;
+            // Funciones de control táctil más directas
+            function handleTouchStart(e) {
+                e.preventDefault();
                 
-                const id = e.pointerId ?? "mouse";
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const w = rect.width;
-                const h = rect.height;
+                if (!gameRunning) return;
 
-                touchState[id] = {
-                    startX: x,
-                    startY: y,
-                    startTime: Date.now(),
-                    zone: null
-                };
+                const touches = e.changedTouches;
+                for (let i = 0; i < touches.length; i++) {
+                    const touch = touches[i];
+                    const rect = canvas.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+                    const w = rect.width;
 
-                // Determinar zona
-                if (x < w * 0.3) {
-                    touchState[id].zone = 'left';
-                    keys["ArrowLeft"] = true;
+                    const touchInfo = {
+                        id: touch.identifier,
+                        startX: x,
+                        startY: y,
+                        startTime: Date.now()
+                    };
+
+                    activeTouches.set(touch.identifier, touchInfo);
+
+                    // Determinar acción basada en posición
+                    if (x < w * 0.3) {
+                        // Zona izquierda
+                        keys["ArrowLeft"] = true;
+                        keys["ArrowRight"] = false;
+                        els.leftZone.classList.add('active');
+                        console.log("👈 Movimiento izquierda activado");
+                    } else if (x > w * 0.7) {
+                        // Zona derecha
+                        keys["ArrowRight"] = true;
+                        keys["ArrowLeft"] = false;
+                        els.rightZone.classList.add('active');
+                        console.log("👉 Movimiento derecha activado");
+                    } else {
+                        // Zona central - saltar
+                        jump();
+                        els.jumpZone.classList.add('active');
+                        console.log("🦘 Salto activado");
+                        setTimeout(() => {
+                            els.jumpZone.classList.remove('active');
+                        }, 300);
+                    }
+                }
+            }
+
+            function handleTouchMove(e) {
+                e.preventDefault();
+                
+                if (!gameRunning) return;
+
+                const touches = e.changedTouches;
+                for (let i = 0; i < touches.length; i++) {
+                    const touch = touches[i];
+                    const touchInfo = activeTouches.get(touch.identifier);
+                    if (!touchInfo) continue;
+
+                    const dy = touch.clientY - touchInfo.startY;
+                    
+                    // Swipe hacia arriba = salto
+                    if (dy < -40) {
+                        jump();
+                        touchInfo.startY = touch.clientY; // Evitar saltos múltiples
+                        console.log("👆 Swipe up - Salto");
+                    }
+                }
+            }
+
+            function handleTouchEnd(e) {
+                e.preventDefault();
+                
+                const touches = e.changedTouches;
+                for (let i = 0; i < touches.length; i++) {
+                    const touch = touches[i];
+                    activeTouches.delete(touch.identifier);
+                }
+
+                // Si no hay más toques activos, limpiar todo
+                if (activeTouches.size === 0) {
+                    keys["ArrowLeft"] = false;
                     keys["ArrowRight"] = false;
-                    activeZones.add('left');
-                    els.leftZone.classList.add('active');
-                } else if (x > w * 0.7) {
-                    touchState[id].zone = 'right';
-                    keys["ArrowRight"] = true;
-                    keys["ArrowLeft"] = false;
-                    activeZones.add('right');
-                    els.rightZone.classList.add('active');
-                } else {
-                    touchState[id].zone = 'jump';
-                    jump();
-                    els.jumpZone.classList.add('active');
-                    setTimeout(() => {
-                        els.jumpZone.classList.remove('active');
-                    }, 200);
-                }
-
-                e.preventDefault();
-            }
-
-            function onPointerMove(e) {
-                if (!gameRunning) return;
-                
-                const id = e.pointerId ?? "mouse";
-                const state = touchState[id];
-                if (!state) return;
-
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const dy = y - state.startY;
-
-                // Swipe hacia arriba para salto adicional
-                if (dy < -50 && state.zone !== 'jump') {
-                    jump();
-                    state.startY = y; // Reset para evitar saltos múltiples
-                }
-
-                e.preventDefault();
-            }
-
-            function onPointerUp(e) {
-                const id = e.pointerId ?? "mouse";
-                const state = touchState[id];
-                if (!state) return;
-
-                // Limpiar teclas y zonas activas
-                if (state.zone === 'left') {
-                    keys["ArrowLeft"] = false;
-                    activeZones.delete('left');
                     els.leftZone.classList.remove('active');
-                } else if (state.zone === 'right') {
-                    keys["ArrowRight"] = false;
-                    activeZones.delete('right');
                     els.rightZone.classList.remove('active');
+                    console.log("🔄 Controles táctiles limpiados");
                 }
-
-                delete touchState[id];
-                e.preventDefault();
             }
 
-            function onPointerCancel(e) {
-                const id = e.pointerId ?? "mouse";
-                delete touchState[id];
+            function handleTouchCancel(e) {
+                e.preventDefault();
+                activeTouches.clear();
                 keys["ArrowLeft"] = false;
                 keys["ArrowRight"] = false;
-                activeZones.clear();
                 els.leftZone.classList.remove('active');
                 els.rightZone.classList.remove('active');
+                console.log("❌ Touch cancelado - controles limpiados");
             }
 
-            // Aplicar eventos táctiles solo en móvil
-            if (isMobile && canvas) {
-                canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
-                canvas.addEventListener("pointermove", onPointerMove, { passive: false });
-                canvas.addEventListener("pointerup", onPointerUp, { passive: false });
-                canvas.addEventListener("pointercancel", onPointerCancel, { passive: false });
+            // Aplicar eventos táctiles
+            if (canvas) {
+                // Usar touch events en lugar de pointer events para mejor compatibilidad móvil
+                canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+                canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+                canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
+                canvas.addEventListener("touchcancel", handleTouchCancel, { passive: false });
+
+                // También mantener eventos de mouse para PC
+                canvas.addEventListener("mousedown", (e) => {
+                    if (isMobile) return; // Solo en PC
+                    
+                    if (!gameRunning) return;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const w = rect.width;
+
+                    if (x < w * 0.3) {
+                        keys["ArrowLeft"] = true;
+                    } else if (x > w * 0.7) {
+                        keys["ArrowRight"] = true;
+                    } else {
+                        jump();
+                    }
+                });
+
+                canvas.addEventListener("mouseup", (e) => {
+                    if (isMobile) return; // Solo en PC
+                    keys["ArrowLeft"] = false;
+                    keys["ArrowRight"] = false;
+                });
+            }
+
+            // Prevenir comportamientos predeterminados del navegador en móvil
+            if (isMobile) {
+                document.addEventListener('touchmove', (e) => {
+                    if (e.target === canvas) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+
+                document.addEventListener('touchstart', (e) => {
+                    if (e.target === canvas) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+
+                document.addEventListener('touchend', (e) => {
+                    if (e.target === canvas) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+
+                // Prevenir zoom
+                let lastTouchEnd = 0;
+                document.addEventListener('touchend', (e) => {
+                    const now = (new Date()).getTime();
+                    if (now - lastTouchEnd <= 300) {
+                        e.preventDefault();
+                    }
+                    lastTouchEnd = now;
+                }, false);
+
+                // Prevenir context menu
                 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-
-                // Prevenir zoom y scroll
-                document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-                document.addEventListener('gesturestart', (e) => e.preventDefault());
-                document.addEventListener('gesturechange', (e) => e.preventDefault());
-                document.addEventListener('gestureend', (e) => e.preventDefault());
             }
+
+            console.log("🎮 Eventos configurados - isMobile:", isMobile);
         }
 
         function animate() {
