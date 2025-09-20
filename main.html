@@ -143,7 +143,7 @@
             backdrop-filter: blur(10px);
         }
 
-        /* Zonas táctiles invisibles para móvil */
+        /* CONTROLES TÁCTILES MEJORADOS - 3 BOTONES INVISIBLES */
         #touchZones {
             position: absolute;
             top: 0;
@@ -152,43 +152,53 @@
             height: 100%;
             z-index: 1500;
             pointer-events: none;
+            display: none;
         }
 
         #touchZones.active {
             pointer-events: auto;
+            display: block;
         }
 
         .touch-zone {
             position: absolute;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px dashed rgba(255, 255, 255, 0.1);
-            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.0);
+            border: none;
+            transition: all 0.15s ease;
+            cursor: pointer;
         }
 
-        .touch-zone.active {
-            background: rgba(0, 255, 234, 0.08);
-            border-color: rgba(0, 255, 234, 0.2);
+        .touch-zone.pressed {
+            background: rgba(0, 255, 234, 0.15);
+            border: 2px solid rgba(0, 255, 234, 0.3);
+            box-shadow: inset 0 0 20px rgba(0, 255, 234, 0.2);
         }
 
+        /* Botón invisible izquierdo */
         #leftZone {
             left: 0;
-            top: 20%;
-            width: 30%;
-            height: 60%;
+            top: 0;
+            width: 33.333%;
+            height: 100%;
+            border-radius: 0;
         }
 
+        /* Botón invisible central (salto) */
+        #jumpZone {
+            left: 33.333%;
+            top: 0;
+            width: 33.334%;
+            height: 100%;
+            border-radius: 0;
+        }
+
+        /* Botón invisible derecho */
         #rightZone {
             right: 0;
-            top: 20%;
-            width: 30%;
-            height: 60%;
-        }
-
-        #jumpZone {
-            left: 30%;
             top: 0;
-            width: 40%;
+            width: 33.333%;
             height: 100%;
+            border-radius: 0;
         }
 
         /* Indicadores visuales para móvil */
@@ -216,6 +226,10 @@
             text-align: center;
             text-shadow: 0 0 10px #00ffea;
             animation: hintPulse 2s infinite;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 234, 0.3);
         }
 
         @keyframes hintPulse {
@@ -224,15 +238,15 @@
         }
 
         #leftHint {
-            left: 15%;
+            left: 16.5%;
             top: 50%;
-            transform: translateY(-50%);
+            transform: translate(-50%, -50%);
         }
 
         #rightHint {
-            right: 15%;
+            right: 16.5%;
             top: 50%;
-            transform: translateY(-50%);
+            transform: translate(50%, -50%);
         }
 
         #jumpHint {
@@ -450,8 +464,8 @@
             <h1 id="gameTitle">ZUNO 3D</h1>
             <p id="subtitle">GUNAR EDITION</p>
             <p id="mobileInstructions">
-                📱 MÓVIL: Toca izquierda/derecha para moverte<br>
-                Toca el centro o desliza hacia arriba para saltar<br>
+                📱 MÓVIL: 3 Botones Invisibles<br>
+                Izquierda | Centro (Saltar) | Derecha<br>
                 💻 PC: Flechas/WASD + Espacio
             </p>
             <button id="startBtn">🚀 INICIAR MISIÓN</button>
@@ -461,11 +475,11 @@
 
         <div id="funnyQuote" class="hidden"></div>
 
-        <!-- Zonas táctiles invisibles -->
+        <!-- 3 BOTONES TÁCTILES INVISIBLES -->
         <div id="touchZones">
-            <div id="leftZone" class="touch-zone"></div>
-            <div id="jumpZone" class="touch-zone"></div>
-            <div id="rightZone" class="touch-zone"></div>
+            <div id="leftZone" class="touch-zone" data-action="left"></div>
+            <div id="jumpZone" class="touch-zone" data-action="jump"></div>
+            <div id="rightZone" class="touch-zone" data-action="right"></div>
         </div>
 
         <!-- Indicadores visuales para móvil -->
@@ -532,7 +546,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // ZUNO 3D EXTREME BY GUNAR - VERSIÓN MEJORADA
+        // ZUNO 3D EXTREME BY GUNAR - VERSIÓN CON CONTROLES TÁCTILES OPTIMIZADOS
         let scene, camera, renderer, player, tunnel, canvas;
         let obstacles = [], gameRunning = false;
         let obstacleSpeed = 0.5, baseSpeed = 0.5, spawnInterval = 0, lastSpawn = 0;
@@ -540,6 +554,13 @@
         let currentTrack = 1, currentQuoteIndex = 0, difficultyLevel = 1;
         let isMobile = false, showMobileHints = false;
         const keys = {};
+
+        // Control táctil mejorado
+        let touchControls = {
+            left: false,
+            right: false,
+            activeTouches: new Map()
+        };
 
         // Sistema de puntuaciones
         let scoreHistory = [];
@@ -622,16 +643,11 @@
             if (isMobile) {
                 document.body.classList.add('mobile');
                 showMobileHints = true;
-                
-                // Hacer las zonas táctiles más visibles en móvil para debug
-                els.leftZone.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-                els.rightZone.style.backgroundColor = 'rgba(0, 255, 0, 0.1)';
-                els.jumpZone.style.backgroundColor = 'rgba(0, 0, 255, 0.1)';
             }
         }
 
         function init() {
-            console.log("🚀 Inicializando ZUNO 3D by GUNAR");
+            console.log("🚀 Inicializando ZUNO 3D by GUNAR - Controles Táctiles Optimizados");
             
             detectMobile();
             loadScoreHistory();
@@ -652,6 +668,7 @@
             canvas.style.touchAction = "none";
 
             createScene();
+            setupTouchControls();
             setupEvents();
             showQuote();
             animate();
@@ -732,6 +749,98 @@
 
             const particles = new THREE.Points(particleGeo, particleMat);
             scene.add(particles);
+        }
+
+        // SISTEMA DE CONTROLES TÁCTILES MEJORADO - 3 BOTONES INVISIBLES
+        function setupTouchControls() {
+            console.log("🎮 Configurando controles táctiles optimizados");
+
+            // Función para manejar el inicio de toque
+            function handleTouchButton(action, pressed = true) {
+                console.log(`🎮 Botón ${action}:`, pressed ? 'PRESIONADO' : 'LIBERADO');
+                
+                switch(action) {
+                    case 'left':
+                        touchControls.left = pressed;
+                        keys["ArrowLeft"] = pressed;
+                        if (!pressed) keys["ArrowRight"] = false;
+                        els.leftZone.classList.toggle('pressed', pressed);
+                        break;
+                        
+                    case 'right':
+                        touchControls.right = pressed;
+                        keys["ArrowRight"] = pressed;
+                        if (!pressed) keys["ArrowLeft"] = false;
+                        els.rightZone.classList.toggle('pressed', pressed);
+                        break;
+                        
+                    case 'jump':
+                        if (pressed) {
+                            jump();
+                            els.jumpZone.classList.add('pressed');
+                            setTimeout(() => {
+                                els.jumpZone.classList.remove('pressed');
+                            }, 150);
+                        }
+                        break;
+                }
+            }
+
+            // Event listeners para cada zona táctil
+            function setupZoneEvents(zone, action) {
+                // Touch events
+                zone.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!gameRunning) return;
+                    handleTouchButton(action, true);
+                }, { passive: false });
+
+                zone.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (action !== 'jump') {
+                        handleTouchButton(action, false);
+                    }
+                }, { passive: false });
+
+                zone.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (action !== 'jump') {
+                        handleTouchButton(action, false);
+                    }
+                }, { passive: false });
+
+                // Mouse events para desktop
+                if (!isMobile) {
+                    zone.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        if (!gameRunning) return;
+                        handleTouchButton(action, true);
+                    });
+
+                    zone.addEventListener('mouseup', (e) => {
+                        e.preventDefault();
+                        if (action !== 'jump') {
+                            handleTouchButton(action, false);
+                        }
+                    });
+
+                    zone.addEventListener('mouseleave', (e) => {
+                        if (action !== 'jump') {
+                            handleTouchButton(action, false);
+                        }
+                    });
+                }
+            }
+
+            // Configurar cada zona
+            setupZoneEvents(els.leftZone, 'left');
+            setupZoneEvents(els.jumpZone, 'jump');
+            setupZoneEvents(els.rightZone, 'right');
+
+            console.log("✅ Controles táctiles configurados correctamente");
         }
 
         function showQuote() {
@@ -876,7 +985,7 @@
             obstacleSpeed = baseSpeed * (1 + elapsedTime * 0.03);
             spawnInterval = Math.max(200, 300 - elapsedTime * 5);
             
-            // Movimiento del jugador
+            // Movimiento del jugador (controles táctiles y teclado)
             const speed = player.userData.moveSpeed;
             if (keys["ArrowLeft"] || keys["a"] || keys["A"]) {
                 player.position.x = Math.max(player.position.x - speed, -5);
@@ -990,7 +1099,7 @@
         }
 
         function startGame() {
-            console.log("🎮 Iniciando misión");
+            console.log("🎮 Iniciando misión con controles táctiles optimizados");
             
             gameRunning = true;
             obstacles.forEach(o => scene.remove(o));
@@ -1016,15 +1125,14 @@
             els.musicIndicator.classList.remove('hidden');
             els.funnyQuote.classList.add('hidden');
 
-            // Activar zonas táctiles en móvil
-            if (isMobile) {
-                els.touchZones.classList.add('active');
-                if (showMobileHints) {
-                    els.mobileHints.classList.add('show');
-                    setTimeout(() => {
-                        els.mobileHints.classList.remove('show');
-                    }, 5000);
-                }
+            // Activar controles táctiles
+            els.touchZones.classList.add('active');
+            
+            if (isMobile && showMobileHints) {
+                els.mobileHints.classList.add('show');
+                setTimeout(() => {
+                    els.mobileHints.classList.remove('show');
+                }, 3000);
             }
 
             playNewTrack();
@@ -1036,8 +1144,17 @@
             
             gameRunning = false;
             
+            // Limpiar controles táctiles
+            touchControls.left = false;
+            touchControls.right = false;
+            keys["ArrowLeft"] = false;
+            keys["ArrowRight"] = false;
+            
             els.touchZones.classList.remove('active');
             els.mobileHints.classList.remove('show');
+            els.leftZone.classList.remove('pressed');
+            els.rightZone.classList.remove('pressed');
+            els.jumpZone.classList.remove('pressed');
             
             els.finalTime.textContent = `${elapsedTime}s`;
             els.finalScore.textContent = score;
@@ -1049,6 +1166,12 @@
         }
 
         function resetGame() {
+            // Limpiar controles táctiles
+            touchControls.left = false;
+            touchControls.right = false;
+            keys["ArrowLeft"] = false;
+            keys["ArrowRight"] = false;
+            
             els.startScreen.classList.remove('hidden');
             els.hud.classList.add('hidden');
             els.scoreDiv.classList.add('hidden');
@@ -1064,6 +1187,7 @@
             if (player.userData.onGround) {
                 player.userData.dy = 0.25;
                 player.userData.onGround = false;
+                console.log("🦘 ¡Salto ejecutado!");
             }
         }
 
@@ -1118,163 +1242,21 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
-            // --- Controles táctiles SIMPLIFICADOS para móvil ---
-            let activeTouches = new Map();
-
-            // Funciones de control táctil más directas
-            function handleTouchStart(e) {
-                e.preventDefault();
-                
-                if (!gameRunning) return;
-
-                const touches = e.changedTouches;
-                for (let i = 0; i < touches.length; i++) {
-                    const touch = touches[i];
-                    const rect = canvas.getBoundingClientRect();
-                    const x = touch.clientX - rect.left;
-                    const y = touch.clientY - rect.top;
-                    const w = rect.width;
-
-                    const touchInfo = {
-                        id: touch.identifier,
-                        startX: x,
-                        startY: y,
-                        startTime: Date.now()
-                    };
-
-                    activeTouches.set(touch.identifier, touchInfo);
-
-                    // Determinar acción basada en posición
-                    if (x < w * 0.3) {
-                        // Zona izquierda
-                        keys["ArrowLeft"] = true;
-                        keys["ArrowRight"] = false;
-                        els.leftZone.classList.add('active');
-                        console.log("👈 Movimiento izquierda activado");
-                    } else if (x > w * 0.7) {
-                        // Zona derecha
-                        keys["ArrowRight"] = true;
-                        keys["ArrowLeft"] = false;
-                        els.rightZone.classList.add('active');
-                        console.log("👉 Movimiento derecha activado");
-                    } else {
-                        // Zona central - saltar
-                        jump();
-                        els.jumpZone.classList.add('active');
-                        console.log("🦘 Salto activado");
-                        setTimeout(() => {
-                            els.jumpZone.classList.remove('active');
-                        }, 300);
-                    }
-                }
-            }
-
-            function handleTouchMove(e) {
-                e.preventDefault();
-                
-                if (!gameRunning) return;
-
-                const touches = e.changedTouches;
-                for (let i = 0; i < touches.length; i++) {
-                    const touch = touches[i];
-                    const touchInfo = activeTouches.get(touch.identifier);
-                    if (!touchInfo) continue;
-
-                    const dy = touch.clientY - touchInfo.startY;
-                    
-                    // Swipe hacia arriba = salto
-                    if (dy < -40) {
-                        jump();
-                        touchInfo.startY = touch.clientY; // Evitar saltos múltiples
-                        console.log("👆 Swipe up - Salto");
-                    }
-                }
-            }
-
-            function handleTouchEnd(e) {
-                e.preventDefault();
-                
-                const touches = e.changedTouches;
-                for (let i = 0; i < touches.length; i++) {
-                    const touch = touches[i];
-                    activeTouches.delete(touch.identifier);
-                }
-
-                // Si no hay más toques activos, limpiar todo
-                if (activeTouches.size === 0) {
-                    keys["ArrowLeft"] = false;
-                    keys["ArrowRight"] = false;
-                    els.leftZone.classList.remove('active');
-                    els.rightZone.classList.remove('active');
-                    console.log("🔄 Controles táctiles limpiados");
-                }
-            }
-
-            function handleTouchCancel(e) {
-                e.preventDefault();
-                activeTouches.clear();
-                keys["ArrowLeft"] = false;
-                keys["ArrowRight"] = false;
-                els.leftZone.classList.remove('active');
-                els.rightZone.classList.remove('active');
-                console.log("❌ Touch cancelado - controles limpiados");
-            }
-
-            // Aplicar eventos táctiles
-            if (canvas) {
-                // Usar touch events en lugar de pointer events para mejor compatibilidad móvil
-                canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
-                canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
-                canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
-                canvas.addEventListener("touchcancel", handleTouchCancel, { passive: false });
-
-                // También mantener eventos de mouse para PC
-                canvas.addEventListener("mousedown", (e) => {
-                    if (isMobile) return; // Solo en PC
-                    
-                    if (!gameRunning) return;
-                    
-                    const rect = canvas.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const w = rect.width;
-
-                    if (x < w * 0.3) {
-                        keys["ArrowLeft"] = true;
-                    } else if (x > w * 0.7) {
-                        keys["ArrowRight"] = true;
-                    } else {
-                        jump();
-                    }
-                });
-
-                canvas.addEventListener("mouseup", (e) => {
-                    if (isMobile) return; // Solo en PC
-                    keys["ArrowLeft"] = false;
-                    keys["ArrowRight"] = false;
-                });
-            }
-
-            // Prevenir comportamientos predeterminados del navegador en móvil
+            // Prevenir comportamientos predeterminados en móvil
             if (isMobile) {
                 document.addEventListener('touchmove', (e) => {
-                    if (e.target === canvas) {
+                    if (e.target === canvas || e.target.closest('#touchZones')) {
                         e.preventDefault();
                     }
                 }, { passive: false });
 
                 document.addEventListener('touchstart', (e) => {
-                    if (e.target === canvas) {
+                    if (e.target === canvas || e.target.closest('#touchZones')) {
                         e.preventDefault();
                     }
                 }, { passive: false });
 
-                document.addEventListener('touchend', (e) => {
-                    if (e.target === canvas) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-
-                // Prevenir zoom
+                // Prevenir zoom con double-tap
                 let lastTouchEnd = 0;
                 document.addEventListener('touchend', (e) => {
                     const now = (new Date()).getTime();
@@ -1285,7 +1267,7 @@
                 }, false);
 
                 // Prevenir context menu
-                canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+                document.addEventListener("contextmenu", (e) => e.preventDefault());
             }
 
             console.log("🎮 Eventos configurados - isMobile:", isMobile);
